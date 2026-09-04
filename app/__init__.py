@@ -22,5 +22,4 @@ ma.init_app(flask_app)
 # initialize flask migrations
 migrate.init_app(flask_app,db)
 
-from app.common.base_route import *
-from app.modules.auth.routes.user import *
+from app.urls import *

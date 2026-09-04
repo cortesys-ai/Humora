@@ -1,5 +1,5 @@
 from app.config import Config
-from ....models.base_model import Base, db
+from .base_model import Base, db
 
 class User(Base):
     __tablename__ = Config.TABLE_PREFIX +"user"
