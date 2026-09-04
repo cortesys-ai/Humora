@@ -7,13 +7,14 @@ from ..helpers.user import UserHelper
 class UserHandler(BaseHandler, UserHelper, DateTimeHelper):
     def post(self):
         try:
-            name = request.form.get('name')
-            email = request.form.get('email')
-            password = request.form.get('password')
-            role = request.form.get('role')
+            payload = request.get_json()
+            name = payload.get('name')
+            email = payload.get('email')
+            password = payload.get('password')
+            role = payload.get('role')
 
-            UserHelper.create_user(self,name,email,password,role)
-            self.return_json(status=200,data={},success=success_config[0])
+            response = UserHelper.create_user(self,name,email,password,role)
+            self.return_json(status=200,data=response.get('data',{}),success=success_config[0])
 
         except Exception as e:
             print(e)
@@ -21,8 +22,7 @@ class UserHandler(BaseHandler, UserHelper, DateTimeHelper):
     def get(self):
         try:
             Data = UserHelper.get_user(self)
-            print(Data)
-            return self.return_json(status=200,data=Data,success=success_config[0])
+            return self.return_json(status=200,data=Data,success=success_config[1])
         except Exception as e:
             print(e)
 
