@@ -1,0 +1,3 @@
+class BaseConfig:
+    SQLALCHEMY_ECHO = False
+    SQLALCHEMY_TRACK_MODIFICATION = True

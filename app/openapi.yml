@@ -1,0 +1,30 @@
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User Login
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+      responses:
+        200:
+          description: Logged in successfully
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: User Registration
+      responses:
+        201:
+          description: Registered successfully
+  
