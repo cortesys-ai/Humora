@@ -1,7 +1,18 @@
 error_config = [
     {
-        "code":1,
+        "code":0,
         "message":"",
-        "success":"true"
-    }
+        "success":"false"
+    },
+    {
+        "code":1,
+        "message":"Authentication Token Missing",
+        "success":"false"
+    },
+    {
+        "code":2,
+        "message":"Your Authentication Token is expirted",
+        "success":"false"
+    },
+
 ]

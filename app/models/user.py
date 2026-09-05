@@ -6,8 +6,8 @@ class User(Base):
 
     uuid = db.Column(db.String(100))
     name = db.Column(db.String(100))
-    password = db.Column(db.String(100))
+    password = db.Column(db.String)
     email = db.Column(db.String(100), unique=True)
-    is_active = db.Column(db.Integer, nullable=False, default=0)
-    status = db.Column(db.Integer, nullable=False, default=0)
-    role = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Integer, nullable=False, default=1)
+    status = db.Column(db.Integer, nullable=False, default=1)
+    role = db.Column(db.Integer, nullable=False, default=1)

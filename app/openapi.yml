@@ -1,5 +1,18 @@
+swagger: "2.0"
+info:
+  title: User & Auth API
+  version: "1.0"
+
+# 1. Define the Bearer token security scheme
+securityDefinitions:
+  BearerAuth:
+    type: apiKey
+    name: Authorization
+    in: header
+    description: "Enter your token in the format: Bearer <JWT-token>"
+
 paths:
-  /auth/login:
+  /api/auth/login:
     post:
       tags:
         - Authentication
@@ -11,7 +24,7 @@ paths:
           schema:
             type: object
             properties:
-              username:
+              email:
                 type: string
               password:
                 type: string
@@ -24,18 +37,24 @@ paths:
       tags:
         - User
       summary: Get User Details
+      security:
+        - BearerAuth: []     # Requires Authorization header
       parameters:
         - name: uuid
-          in: query          # GET requests should use query or path params, not body
+          in: query
           type: string
       responses:
         200:
           description: User details retrieved successfully
+        401:
+          description: Unauthorized / Missing or Invalid Token
 
     post:
       tags:
         - User
       summary: Create User
+      security:
+        - BearerAuth: []     # Requires Authorization header
       parameters:
         - name: body
           in: body
@@ -54,11 +73,15 @@ paths:
       responses:
         201:
           description: User created successfully
+        401:
+          description: Unauthorized / Missing or Invalid Token
 
     put:
       tags:
         - User
       summary: Update User
+      security:
+        - BearerAuth: []     # Requires Authorization header
       parameters:
         - name: body
           in: body
@@ -77,16 +100,22 @@ paths:
       responses:
         200:
           description: User updated successfully
+        401:
+          description: Unauthorized / Missing or Invalid Token
 
     delete:
       tags:
         - User
       summary: Delete User
+      security:
+        - BearerAuth: []     # Requires Authorization header
       parameters:
         - name: uuid
-          in: query          # Or pass in path /api/auth/user/{uuid}
+          in: query
           required: true
           type: string
       responses:
         200:
           description: User deleted successfully
+        401:
+          description: Unauthorized / Missing or Invalid Token

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Audit Logs Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    pre, code, .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased flex flex-col">
+
+  <!-- Top Navigation -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="h-9 w-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-bold text-lg">
+        ⚡
+      </div>
+      <div>
+        <h1 class="text-base font-semibold tracking-tight text-white">API Traffic & Audit Logs</h1>
+        <p class="text-xs text-slate-400">Real-time HTTP request lifecycle telemetry</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3">
+      <button id="refreshBtn" onclick="fetchLogs()" class="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 transition">
+        <svg id="refreshIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        <span>Refresh</span>
+      </button>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live
+      </span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-6 flex flex-col gap-6">
+
+    <!-- Filters Bar -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-800/40 border border-slate-800 p-3 rounded-2xl">
+      <div class="relative">
+        <input type="text" id="searchEndpoint" placeholder="Filter by endpoint..." 
+          class="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700/60 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition">
+        <svg class="w-4 h-4 text-slate-500 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+      </div>
+
+      <select id="methodFilter" class="bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition">
+        <option value="">All Methods</option>
+        <option value="GET">GET</option>
+        <option value="POST">POST</option>
+        <option value="PUT">PUT</option>
+        <option value="DELETE">DELETE</option>
+      </select>
+
+      <select id="statusFilter" class="bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition">
+        <option value="">All Status Codes</option>
+        <option value="200">200 OK</option>
+        <option value="201">201 Created</option>
+        <option value="400">400 Bad Request</option>
+        <option value="401">401 Unauthorized</option>
+        <option value="404">404 Not Found</option>
+        <option value="500">500 Server Error</option>
+      </select>
+
+      <button onclick="fetchLogs(1)" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold py-2 px-4 transition shadow-sm shadow-indigo-500/20">
+        Apply Filters
+      </button>
+    </div>
+
+    <!-- Data Table Card -->
+    <div class="bg-slate-800/40 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex-1 flex flex-col justify-between">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-slate-800 bg-slate-900/60 text-slate-400 font-semibold uppercase tracking-wider">
+              <th class="py-3 px-4">Method</th>
+              <th class="py-3 px-4">Status</th>
+              <th class="py-3 px-4">Endpoint</th>
+              <th class="py-3 px-4">Duration</th>
+              <th class="py-3 px-4">Client IP</th>
+              <th class="py-3 px-4">Timestamp</th>
+              <th class="py-3 px-4 text-right">Payload</th>
+            </tr>
+          </thead>
+          <tbody id="logsTableBody" class="divide-y divide-slate-800/60 font-medium">
+            <!-- Dynamic Rows Injected Here -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="flex items-center justify-between border-t border-slate-800 bg-slate-900/40 px-6 py-3 text-xs text-slate-400">
+        <div>
+          Showing page <span id="currentPageNum" class="text-white font-semibold">1</span> of <span id="totalPagesNum" class="text-white font-semibold">1</span> (<span id="totalLogsNum" class="text-white font-semibold">0</span> total records)
+        </div>
+        <div class="flex space-x-2">
+          <button id="prevBtn" onclick="changePage(-1)" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition disabled:opacity-30 disabled:cursor-not-allowed">Previous</button>
+          <button id="nextBtn" onclick="changePage(1)" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Payload Details Modal -->
+  <div id="detailsModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+        <div class="flex items-center space-x-3">
+          <span id="modalMethodBadge"></span>
+          <span id="modalEndpoint" class="mono text-sm text-slate-200 font-semibold"></span>
+          <span id="modalStatusBadge"></span>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg font-bold px-2 py-1">&times;</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto space-y-4 text-xs">
+        <div>
+          <span class="text-slate-400 font-semibold uppercase tracking-wider block mb-1">Request Body</span>
+          <pre id="modalReqBody" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-indigo-300 overflow-x-auto max-h-48 whitespace-pre-wrap"></pre>
+        </div>
+        <div>
+          <span class="text-slate-400 font-semibold uppercase tracking-wider block mb-1">Response Body</span>
+          <pre id="modalResBody" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-emerald-300 overflow-x-auto max-h-48 whitespace-pre-wrap"></pre>
+        </div>
+        <div>
+          <span class="text-slate-400 font-semibold uppercase tracking-wider block mb-1">Headers</span>
+          <pre id="modalHeaders" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 overflow-x-auto max-h-36 whitespace-pre-wrap"></pre>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3 border-t border-slate-800 bg-slate-900/60 flex justify-end">
+        <button onclick="closeModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentPage = 1;
+    let totalPages = 1;
+    let logsCache = [];
+
+    const METHOD_COLORS = {
+      GET: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+      POST: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+      PUT: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+      DELETE: 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+    };
+
+    function getStatusBadge(code) {
+      let colorClass = 'bg-slate-700 text-slate-300 border-slate-600';
+      if (code >= 200 && code < 300) colorClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      else if (code >= 300 && code < 400) colorClass = 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
+      else if (code >= 400 && code < 500) colorClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      else if (code >= 500) colorClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      return `<span class="px-2 py-0.5 rounded-full border text-[10px] font-semibold ${colorClass}">${code}</span>`;
+    }
+
+    async function fetchLogs(page = 1) {
+      currentPage = page;
+      const method = document.getElementById('methodFilter').value;
+      const status = document.getElementById('statusFilter').value;
+      const endpoint = document.getElementById('searchEndpoint').value.trim();
+
+      let url = `/api/v1/logs?page=${page}&per_page=15`;
+      if (method) url += `&method=${method}`;
+      if (status) url += `&status_code=${status}`;
+
+      const refreshIcon = document.getElementById('refreshIcon');
+      refreshIcon.classList.add('animate-spin');
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        logsCache = data.data || [];
+        if (endpoint) {
+          logsCache = logsCache.filter(l => l.endpoint.toLowerCase().includes(endpoint.toLowerCase()));
+        }
+
+        totalPages = data.pages || 1;
+        document.getElementById('currentPageNum').innerText = data.page || 1;
+        document.getElementById('totalPagesNum').innerText = totalPages;
+        document.getElementById('totalLogsNum').innerText = data.total || 0;
+
+        document.getElementById('prevBtn').disabled = currentPage <= 1;
+        document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+
+        renderTable();
+      } catch (err) {
+        console.error("Failed to fetch logs:", err);
+      } finally {
+        refreshIcon.classList.remove('animate-spin');
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('logsTableBody');
+      if (!logsCache.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-500">No logs found matching criteria</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = logsCache.map((log, index) => {
+        const methodBadge = `<span class="px-2 py-0.5 rounded-md border text-[10px] font-bold ${METHOD_COLORS[log.method] || 'bg-slate-700 text-slate-300'}">${log.method}</span>`;
+        const timeFormatted = log.created_at ? new Date(log.created_at).toLocaleTimeString() : '-';
+
+        return `
+          <tr class="hover:bg-slate-800/30 transition">
+            <td class="py-3 px-4">${methodBadge}</td>
+            <td class="py-3 px-4">${getStatusBadge(log.status_code)}</td>
+            <td class="py-3 px-4 mono text-slate-200">${log.endpoint}</td>
+            <td class="py-3 px-4 text-slate-400">${log.duration_ms ? log.duration_ms + ' ms' : '-'}</td>
+            <td class="py-3 px-4 text-slate-400 mono text-[11px]">${log.ip_address || '127.0.0.1'}</td>
+            <td class="py-3 px-4 text-slate-500">${timeFormatted}</td>
+            <td class="py-3 px-4 text-right">
+              <button onclick="viewDetails(${index})" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-lg text-[11px] border border-slate-700 transition">
+                Inspect
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function formatJsonSafe(data) {
+      if (!data) return "None";
+      try {
+        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        return data;
+      }
+    }
+
+    function viewDetails(index) {
+      const log = logsCache[index];
+      if (!log) return;
+
+      document.getElementById('modalMethodBadge').innerHTML = `<span class="px-2 py-0.5 rounded-md border text-[10px] font-bold ${METHOD_COLORS[log.method] || 'bg-slate-700'}">${log.method}</span>`;
+      document.getElementById('modalEndpoint').innerText = log.endpoint;
+      document.getElementById('modalStatusBadge').innerHTML = getStatusBadge(log.status_code);
+
+      document.getElementById('modalReqBody').textContent = formatJsonSafe(log.request_body);
+      document.getElementById('modalResBody').textContent = formatJsonSafe(log.response_body);
+      document.getElementById('modalHeaders').textContent = formatJsonSafe(log.request_headers);
+
+      document.getElementById('detailsModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('detailsModal').classList.add('hidden');
+    }
+
+    function changePage(delta) {
+      const targetPage = currentPage + delta;
+      if (targetPage >= 1 && targetPage <= totalPages) {
+        fetchLogs(targetPage);
+      }
+    }
+
+    // Auto-load on visit
+    document.addEventListener('DOMContentLoaded', () => fetchLogs(1));
+  </script>
+</body>
+</html>

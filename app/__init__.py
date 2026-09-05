@@ -3,11 +3,17 @@ from flask_restful import Api
 from app.models.base_model import db, ma, migrate
 from app.config import Config
 from flasgger import Swagger
+from app.helpers.base_helper import register_request_loggers
+import warnings
+warnings.filterwarnings("ignore")
 
 flask_app = Flask(__name__, instance_relative_config=True)
 flask_app.config.from_object(Config)
 
 swagger = Swagger(flask_app, template_file='openapi.yml')
+
+# Register the before_request and after_request middleware
+register_request_loggers(flask_app)
 
 api_bp = Blueprint('api',__name__)
 api = Api(api_bp)

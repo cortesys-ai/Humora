@@ -5,3 +5,4 @@ app/__pycache__/
 app/config/__pycache__/
 .DS_Store
 app/swagger.yaml
+**/migrations/
