@@ -6,6 +6,9 @@ from ..helpers.user import UserHelper
 from app.helpers.base_helper import authenticate, generate_jwt_token
 from werkzeug.security import check_password_hash, generate_password_hash
 from app.models.user import User
+from app.helpers.validation import validate_email, valdate_integer
+from app.helpers.base_helper import ApiException
+from app.config.error_config import error_config
 
 class UserHandler(BaseHandler, UserHelper, DateTimeHelper):
     @authenticate
@@ -16,13 +19,19 @@ class UserHandler(BaseHandler, UserHelper, DateTimeHelper):
             email = payload.get('email')
             password = payload.get('password')
             role = payload.get('role')
+
+            if not name :
+                raise ApiException(error_config[3])
+
+        
             encrypted_password = generate_password_hash(password)
 
             response = UserHelper.create_user(self,name,email,encrypted_password,role)
-            self.return_json(status=200,data=response.get('data',{}),success=success_config[0])
-
+            return self.return_json(status=200,data=response.get('data',{}),success=success_config[0])
+        except ApiException:
+            return self.return_json(status=400,data={},error=error_config[3])
         except Exception as e:
-            print(e)
+            return self.return_json(status=400,data={},error=error_config[3])
 
     @authenticate
     def get(self):

@@ -13,6 +13,9 @@ from flask import current_app
 import jwt
 from app.config import Config
 
+from flask import jsonify
+from werkzeug.exceptions import HTTPException
+
 def authenticate(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -21,20 +24,15 @@ def authenticate(f):
         # 1. Check if Authorization header exists
         if not auth_header:
             return error_config[1], 401
-
-        # 2. Check format: "Bearer <token>"
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            return error_config[2], 401
-
-        token = parts[1]
-
-        # 3. Validate & decode the JWT token
+        
+        # 2. Validate & decode the JWT token
         try:
-            secret_key = current_app.config.get("SECRET_KEY", "fallback-secret-key")
-            payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+            secret_key = current_app.config.get("JWT_SECRET_KEY")
+            print(secret_key)
+            payload = jwt.decode(auth_header, str(secret_key), algorithms=["HS256"])
+            print("payload",payload)
             # Pass the decoded payload (or user id) into the endpoint via kwargs
-            kwargs["current_user"] = payload
+            # kwargs["current_user"] = payload
         except jwt.ExpiredSignatureError:
             return {"error": "Token has expired"}, 401
         except jwt.InvalidTokenError:
@@ -106,12 +104,12 @@ def generate_jwt_token(user):
             "name": str(user.name),
             "role": str(user.role),
             "is_active": str(user.is_active),
-            "iat": datetime.now(),
-            "exp": datetime.now() + timedelta(hours=24)  # 24-hour validity
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=24)  # 24-hour validity
         }
         # payload = json.dumps(payload)
         print(payload)
-        secret_key = current_app.config.get("SECRET_KEY", Config.JWT_SECRET_KEY)
+        secret_key = current_app.config.get("JWT_SECRET_KEY")
         return jwt.encode(payload, str(secret_key), algorithm="HS256")
     except Exception as e:
         print(e)
@@ -120,3 +118,31 @@ def generate_jwt_token(user):
             __file__,                  # /tmp/example.py
             e.__traceback__.tb_lineno  # 2
         )
+
+
+class ApiException(Exception):
+    """Base custom API exception."""
+    status_code = 400
+    default_message = "An unexpected error occurred"
+    code = ""
+
+    def __init__(self, message=None, status_code=None, code=None, details=None):
+        super().__init__()
+        self.message = message or self.default_message
+        if status_code is not None:
+            self.status_code = status_code
+        if code is not None:
+            self.code = code
+        self.details = details or {}
+
+    def to_dict(self):
+        # Default payload shape — customize this to match your requirements
+        payload = {
+            "status": "error",
+            "code": self.code,
+            "message": self.message,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        if self.details:
+            payload["details"] = self.details
+        return payload

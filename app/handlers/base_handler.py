@@ -29,7 +29,7 @@ class BaseHandler(Resource):
                 return {
                     "success": False,
                     "message": error['message'],
-                    "error_code":error['error_code'],
+                    "code":error['code'],
                     "data":data
                 }, status
         except Exception as e:
