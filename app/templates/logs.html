@@ -1,273 +1,2564 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>API Audit Logs Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; }
-    pre, code, .mono { font-family: 'JetBrains Mono', monospace; }
-  </style>
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen antialiased flex flex-col">
 
-  <!-- Top Navigation -->
-  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center space-x-3">
-      <div class="h-9 w-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-bold text-lg">
-        ⚡
-      </div>
-      <div>
-        <h1 class="text-base font-semibold tracking-tight text-white">API Traffic & Audit Logs</h1>
-        <p class="text-xs text-slate-400">Real-time HTTP request lifecycle telemetry</p>
-      </div>
-    </div>
-    <div class="flex items-center space-x-3">
-      <button id="refreshBtn" onclick="fetchLogs()" class="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 transition">
-        <svg id="refreshIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-        <span>Refresh</span>
-      </button>
-      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live
-      </span>
-    </div>
-  </header>
+    <meta charset="UTF-8">
 
-  <!-- Main Container -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-6 flex flex-col gap-6">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
-    <!-- Filters Bar -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-800/40 border border-slate-800 p-3 rounded-2xl">
-      <div class="relative">
-        <input type="text" id="searchEndpoint" placeholder="Filter by endpoint..." 
-          class="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700/60 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition">
-        <svg class="w-4 h-4 text-slate-500 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-      </div>
+    <title>API Audit Logs</title>
 
-      <select id="methodFilter" class="bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition">
-        <option value="">All Methods</option>
-        <option value="GET">GET</option>
-        <option value="POST">POST</option>
-        <option value="PUT">PUT</option>
-        <option value="DELETE">DELETE</option>
-      </select>
+    <style>
 
-      <select id="statusFilter" class="bg-slate-900 border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition">
-        <option value="">All Status Codes</option>
-        <option value="200">200 OK</option>
-        <option value="201">201 Created</option>
-        <option value="400">400 Bad Request</option>
-        <option value="401">401 Unauthorized</option>
-        <option value="404">404 Not Found</option>
-        <option value="500">500 Server Error</option>
-      </select>
+        /* =====================================================
+           RESET
+        ===================================================== */
 
-      <button onclick="fetchLogs(1)" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold py-2 px-4 transition shadow-sm shadow-indigo-500/20">
-        Apply Filters
-      </button>
-    </div>
-
-    <!-- Data Table Card -->
-    <div class="bg-slate-800/40 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex-1 flex flex-col justify-between">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr class="border-b border-slate-800 bg-slate-900/60 text-slate-400 font-semibold uppercase tracking-wider">
-              <th class="py-3 px-4">Method</th>
-              <th class="py-3 px-4">Status</th>
-              <th class="py-3 px-4">Endpoint</th>
-              <th class="py-3 px-4">Duration</th>
-              <th class="py-3 px-4">Client IP</th>
-              <th class="py-3 px-4">Timestamp</th>
-              <th class="py-3 px-4 text-right">Payload</th>
-            </tr>
-          </thead>
-          <tbody id="logsTableBody" class="divide-y divide-slate-800/60 font-medium">
-            <!-- Dynamic Rows Injected Here -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination Footer -->
-      <div class="flex items-center justify-between border-t border-slate-800 bg-slate-900/40 px-6 py-3 text-xs text-slate-400">
-        <div>
-          Showing page <span id="currentPageNum" class="text-white font-semibold">1</span> of <span id="totalPagesNum" class="text-white font-semibold">1</span> (<span id="totalLogsNum" class="text-white font-semibold">0</span> total records)
-        </div>
-        <div class="flex space-x-2">
-          <button id="prevBtn" onclick="changePage(-1)" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition disabled:opacity-30 disabled:cursor-not-allowed">Previous</button>
-          <button id="nextBtn" onclick="changePage(1)" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 transition disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <!-- Payload Details Modal -->
-  <div id="detailsModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
-      
-      <!-- Modal Header -->
-      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
-        <div class="flex items-center space-x-3">
-          <span id="modalMethodBadge"></span>
-          <span id="modalEndpoint" class="mono text-sm text-slate-200 font-semibold"></span>
-          <span id="modalStatusBadge"></span>
-        </div>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white text-lg font-bold px-2 py-1">&times;</button>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="p-6 overflow-y-auto space-y-4 text-xs">
-        <div>
-          <span class="text-slate-400 font-semibold uppercase tracking-wider block mb-1">Request Body</span>
-          <pre id="modalReqBody" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-indigo-300 overflow-x-auto max-h-48 whitespace-pre-wrap"></pre>
-        </div>
-        <div>
-          <span class="text-slate-400 font-semibold uppercase tracking-wider block mb-1">Response Body</span>
-          <pre id="modalResBody" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-emerald-300 overflow-x-auto max-h-48 whitespace-pre-wrap"></pre>
-        </div>
-        <div>
-          <span class="text-slate-400 font-semibold uppercase tracking-wider block mb-1">Headers</span>
-          <pre id="modalHeaders" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 overflow-x-auto max-h-36 whitespace-pre-wrap"></pre>
-        </div>
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="px-6 py-3 border-t border-slate-800 bg-slate-900/60 flex justify-end">
-        <button onclick="closeModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let currentPage = 1;
-    let totalPages = 1;
-    let logsCache = [];
-
-    const METHOD_COLORS = {
-      GET: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-      POST: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-      PUT: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-      DELETE: 'bg-rose-500/15 text-rose-400 border-rose-500/30'
-    };
-
-    function getStatusBadge(code) {
-      let colorClass = 'bg-slate-700 text-slate-300 border-slate-600';
-      if (code >= 200 && code < 300) colorClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      else if (code >= 300 && code < 400) colorClass = 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
-      else if (code >= 400 && code < 500) colorClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      else if (code >= 500) colorClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-      return `<span class="px-2 py-0.5 rounded-full border text-[10px] font-semibold ${colorClass}">${code}</span>`;
-    }
-
-    async function fetchLogs(page = 1) {
-      currentPage = page;
-      const method = document.getElementById('methodFilter').value;
-      const status = document.getElementById('statusFilter').value;
-      const endpoint = document.getElementById('searchEndpoint').value.trim();
-
-      let url = `/api/v1/logs?page=${page}&per_page=15`;
-      if (method) url += `&method=${method}`;
-      if (status) url += `&status_code=${status}`;
-
-      const refreshIcon = document.getElementById('refreshIcon');
-      refreshIcon.classList.add('animate-spin');
-
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-
-        logsCache = data.data || [];
-        if (endpoint) {
-          logsCache = logsCache.filter(l => l.endpoint.toLowerCase().includes(endpoint.toLowerCase()));
+        * {
+            box-sizing: border-box;
         }
 
-        totalPages = data.pages || 1;
-        document.getElementById('currentPageNum').innerText = data.page || 1;
-        document.getElementById('totalPagesNum').innerText = totalPages;
-        document.getElementById('totalLogsNum').innerText = data.total || 0;
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+        }
 
-        document.getElementById('prevBtn').disabled = currentPage <= 1;
-        document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        body {
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Roboto,
+                Helvetica,
+                Arial,
+                sans-serif;
 
-        renderTable();
-      } catch (err) {
-        console.error("Failed to fetch logs:", err);
-      } finally {
-        refreshIcon.classList.remove('animate-spin');
-      }
+            background: #f5f7fb;
+            color: #172033;
+        }
+
+        button,
+        input,
+        select {
+            font-family: inherit;
+        }
+
+
+        /* =====================================================
+           MAIN CONTAINER
+        ===================================================== */
+
+        .container {
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 28px;
+        }
+
+
+        /* =====================================================
+           PAGE HEADER
+        ===================================================== */
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            margin-bottom: 24px;
+        }
+
+        .title-section h1 {
+            margin: 0;
+
+            font-size: 27px;
+            font-weight: 700;
+
+            color: #111827;
+        }
+
+        .title-section p {
+            margin: 6px 0 0;
+
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+
+        /* =====================================================
+           BUTTONS
+        ===================================================== */
+
+        .btn {
+            height: 40px;
+
+            padding: 0 15px;
+
+            border: 1px solid #d8dee9;
+            border-radius: 8px;
+
+            background: #ffffff;
+            color: #374151;
+
+            font-size: 13px;
+            font-weight: 600;
+
+            cursor: pointer;
+
+            transition:
+                background .15s,
+                border-color .15s;
+        }
+
+        .btn:hover {
+            background: #f3f4f6;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+
+            border-color: #2563eb;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+
+
+        /* =====================================================
+           STATISTICS
+        ===================================================== */
+
+        .stats-grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(5, 1fr);
+
+            gap: 15px;
+
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #ffffff;
+
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+
+            padding: 18px;
+
+            box-shadow:
+                0 1px 2px rgba(0, 0, 0, .03);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 500;
+
+            color: #6b7280;
+        }
+
+        .stat-value {
+            margin-top: 8px;
+
+            font-size: 25px;
+            line-height: 1;
+
+            font-weight: 700;
+
+            color: #111827;
+        }
+
+
+        /* =====================================================
+           FILTER CARD
+        ===================================================== */
+
+        .filter-card {
+            background: #ffffff;
+
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+
+            padding: 16px;
+
+            margin-bottom: 18px;
+        }
+
+        .filter-grid {
+            display: grid;
+
+            grid-template-columns:
+                2fr
+                1fr
+                1fr
+                1fr
+                1fr
+                auto;
+
+            gap: 10px;
+
+            align-items: center;
+        }
+
+        .form-control {
+            width: 100%;
+            height: 40px;
+
+            padding: 0 11px;
+
+            border: 1px solid #d8dee9;
+            border-radius: 7px;
+
+            background: #ffffff;
+
+            color: #374151;
+
+            font-size: 13px;
+
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: #2563eb;
+
+            box-shadow:
+                0 0 0 3px rgba(37, 99, 235, .08);
+        }
+
+
+        /* =====================================================
+           TABLE CARD
+        ===================================================== */
+
+        .table-card {
+            background: #ffffff;
+
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+
+            overflow: hidden;
+
+            box-shadow:
+                0 1px 2px rgba(0, 0, 0, .03);
+        }
+
+        .table-header {
+            display: flex;
+
+            justify-content: space-between;
+            align-items: center;
+
+            padding: 16px 18px;
+
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .table-title {
+            font-size: 15px;
+            font-weight: 700;
+
+            color: #111827;
+        }
+
+        .record-count {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+
+            min-width: 1150px;
+
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8fafc;
+        }
+
+        th {
+            padding: 12px 16px;
+
+            text-align: left;
+
+            font-size: 11px;
+            font-weight: 700;
+
+            text-transform: uppercase;
+            letter-spacing: .04em;
+
+            color: #6b7280;
+
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+
+            border-top: 1px solid #edf0f4;
+
+            font-size: 13px;
+
+            vertical-align: middle;
+        }
+
+        tbody tr {
+            cursor: pointer;
+
+            transition:
+                background .15s;
+        }
+
+        tbody tr:hover {
+            background: #f8fafc;
+        }
+
+
+        /* =====================================================
+           ID
+        ===================================================== */
+
+        .log-id {
+            font-family: monospace;
+
+            font-size: 12px;
+
+            color: #6b7280;
+        }
+
+
+        /* =====================================================
+           METHOD
+        ===================================================== */
+
+        .method {
+            display: inline-flex;
+
+            justify-content: center;
+            align-items: center;
+
+            min-width: 60px;
+
+            padding: 4px 8px;
+
+            border-radius: 5px;
+
+            font-family: monospace;
+
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .method-GET {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .method-POST {
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+        .method-PUT {
+            background: #fffbeb;
+            color: #d97706;
+        }
+
+        .method-PATCH {
+            background: #f5f3ff;
+            color: #7c3aed;
+        }
+
+        .method-DELETE {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .method-OPTIONS {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+
+        .method-HEAD {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+
+
+        /* =====================================================
+           ENDPOINT
+        ===================================================== */
+
+        .endpoint {
+            max-width: 400px;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+
+            white-space: nowrap;
+
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                monospace;
+
+            font-size: 12px;
+
+            color: #374151;
+        }
+
+
+        /* =====================================================
+           IP ADDRESS
+        ===================================================== */
+
+        .ip-address {
+            font-family: monospace;
+
+            font-size: 12px;
+
+            color: #4b5563;
+
+            white-space: nowrap;
+        }
+
+
+        /* =====================================================
+           TIMESTAMP
+        ===================================================== */
+
+        .timestamp {
+            display: block;
+
+            min-width: 150px;
+
+            white-space: nowrap;
+
+            font-size: 12px;
+
+            color: #4b5563;
+        }
+
+
+        /* =====================================================
+           STATUS
+        ===================================================== */
+
+        .status {
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+            font-family: monospace;
+
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+
+            border-radius: 50%;
+        }
+
+        .status-success {
+            color: #047857;
+        }
+
+        .status-success .status-dot {
+            background: #10b981;
+        }
+
+        .status-client {
+            color: #b45309;
+        }
+
+        .status-client .status-dot {
+            background: #f59e0b;
+        }
+
+        .status-server {
+            color: #dc2626;
+        }
+
+        .status-server .status-dot {
+            background: #ef4444;
+        }
+
+
+        /* =====================================================
+           DURATION
+        ===================================================== */
+
+        .duration {
+            font-family: monospace;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+        }
+
+        .duration-fast {
+            color: #059669;
+        }
+
+        .duration-medium {
+            color: #d97706;
+        }
+
+        .duration-slow {
+            color: #dc2626;
+        }
+
+
+        /* =====================================================
+           PAGINATION
+        ===================================================== */
+
+        .pagination {
+            display: flex;
+
+            justify-content: space-between;
+            align-items: center;
+
+            padding: 14px 18px;
+
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .pagination-info {
+            font-size: 12px;
+
+            color: #6b7280;
+        }
+
+        .pagination-buttons {
+            display: flex;
+
+            gap: 5px;
+        }
+
+        .page-btn {
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            min-width: 32px;
+            height: 32px;
+
+            padding: 0 8px;
+
+            border: 1px solid #d8dee9;
+
+            border-radius: 6px;
+
+            background: #ffffff;
+
+            color: #374151;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            cursor: pointer;
+        }
+
+        .page-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .page-btn.active {
+            background: #2563eb;
+
+            border-color: #2563eb;
+
+            color: #ffffff;
+        }
+
+
+        /* =====================================================
+           MODAL / SIDE PANEL
+        ===================================================== */
+
+        .modal {
+            position: fixed;
+
+            inset: 0;
+
+            display: none;
+
+            background:
+                rgba(15, 23, 42, .45);
+
+            z-index: 9999;
+        }
+
+        .modal.active {
+            display: block;
+        }
+
+        .modal-panel {
+            position: absolute;
+
+            top: 0;
+            right: 0;
+
+            width: min(780px, 100%);
+
+            height: 100%;
+
+            background: #ffffff;
+
+            overflow-y: auto;
+
+            box-shadow:
+                -10px 0 30px rgba(0, 0, 0, .12);
+
+            animation:
+                slideIn .2s ease;
+        }
+
+        @keyframes slideIn {
+
+            from {
+                transform: translateX(100%);
+            }
+
+            to {
+                transform: translateX(0);
+            }
+
+        }
+
+
+        /* =====================================================
+           MODAL HEADER
+        ===================================================== */
+
+        .modal-header {
+            position: sticky;
+
+            top: 0;
+
+            z-index: 10;
+
+            display: flex;
+
+            justify-content: space-between;
+            align-items: center;
+
+            padding: 18px 22px;
+
+            background: #ffffff;
+
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .modal-title {
+            font-size: 16px;
+
+            font-weight: 700;
+
+            color: #111827;
+        }
+
+        .close-btn {
+            width: 34px;
+            height: 34px;
+
+            border: 0;
+
+            border-radius: 7px;
+
+            background: #f3f4f6;
+
+            color: #4b5563;
+
+            font-size: 20px;
+
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            background: #e5e7eb;
+        }
+
+
+        /* =====================================================
+           MODAL BODY
+        ===================================================== */
+
+        .modal-body {
+            padding: 22px;
+        }
+
+
+        /* =====================================================
+           REQUEST SUMMARY
+        ===================================================== */
+
+        .request-summary {
+            padding: 16px;
+
+            margin-bottom: 24px;
+
+            background: #f8fafc;
+
+            border: 1px solid #e5e7eb;
+
+            border-radius: 10px;
+        }
+
+        .request-line {
+            font-family: monospace;
+
+            font-size: 13px;
+
+            line-height: 1.5;
+
+            color: #111827;
+
+            word-break: break-all;
+        }
+
+        .summary-grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
+            gap: 10px;
+
+            margin-top: 15px;
+        }
+
+        .summary-item {
+            padding: 11px;
+
+            background: #ffffff;
+
+            border: 1px solid #e5e7eb;
+
+            border-radius: 7px;
+        }
+
+        .summary-label {
+            display: block;
+
+            margin-bottom: 5px;
+
+            color: #9ca3af;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+        }
+
+        .summary-value {
+            color: #374151;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            word-break: break-word;
+        }
+
+
+        /* =====================================================
+           DETAILS SECTION
+        ===================================================== */
+
+        .detail-section {
+            margin-top: 23px;
+        }
+
+        .detail-header {
+            display: flex;
+
+            justify-content: space-between;
+            align-items: center;
+
+            margin-bottom: 8px;
+        }
+
+        .detail-title {
+            font-size: 13px;
+
+            font-weight: 700;
+
+            color: #111827;
+        }
+
+        .copy-btn {
+            padding: 5px 10px;
+
+            border: 1px solid #d8dee9;
+
+            border-radius: 6px;
+
+            background: #ffffff;
+
+            color: #4b5563;
+
+            font-size: 11px;
+
+            cursor: pointer;
+        }
+
+        .copy-btn:hover {
+            background: #f3f4f6;
+        }
+
+
+        /* =====================================================
+           CODE BLOCK
+        ===================================================== */
+
+        .code-block {
+            margin: 0;
+
+            padding: 15px;
+
+            min-height: 50px;
+
+            max-height: 350px;
+
+            overflow: auto;
+
+            background: #111827;
+
+            color: #d1d5db;
+
+            border-radius: 8px;
+
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                monospace;
+
+            font-size: 12px;
+
+            line-height: 1.6;
+
+            white-space: pre-wrap;
+
+            word-break: break-word;
+        }
+
+        .empty-data {
+            color: #9ca3af;
+
+            font-style: italic;
+        }
+
+
+        /* =====================================================
+           RESPONSIVE
+        ===================================================== */
+
+        @media (max-width: 1250px) {
+
+            .stats-grid {
+                grid-template-columns:
+                    repeat(3, 1fr);
+            }
+
+            .filter-grid {
+                grid-template-columns:
+                    2fr
+                    1fr
+                    1fr;
+            }
+
+        }
+
+
+        @media (max-width: 700px) {
+
+            .container {
+                padding: 15px;
+            }
+
+            .page-header {
+                flex-direction: column;
+
+                align-items: flex-start;
+
+                gap: 15px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pagination {
+                flex-direction: column;
+
+                align-items: flex-start;
+
+                gap: 12px;
+            }
+
+            .modal-panel {
+                width: 100%;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
+    <div class="page-header">
+
+
+        <div class="title-section">
+
+            <h1>
+                API Audit Logs
+            </h1>
+
+            <p>
+                Monitor API requests, responses and performance
+            </p>
+
+        </div>
+
+
+        <div class="header-actions">
+
+            <button
+                type="button"
+                class="btn"
+                onclick="refreshLogs()"
+            >
+                ↻ Refresh
+            </button>
+
+
+            <button
+                type="button"
+                class="btn btn-primary"
+                onclick="clearFilters()"
+            >
+                Clear Filters
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         STATISTICS
+    ====================================================== -->
+
+    <div class="stats-grid">
+
+
+        <div class="stat-card">
+
+            <div class="stat-label">
+                Total Requests
+            </div>
+
+            <div class="stat-value">
+                {{ total_logs|default(0) }}
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-label">
+                Successful
+            </div>
+
+            <div class="stat-value">
+                {{ successful_logs|default(0) }}
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-label">
+                Client Errors
+            </div>
+
+            <div class="stat-value">
+                {{ client_errors|default(0) }}
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-label">
+                Server Errors
+            </div>
+
+            <div class="stat-value">
+                {{ server_errors|default(0) }}
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-label">
+                Current Page
+            </div>
+
+            <div class="stat-value">
+
+                {% if logs %}
+                    {{ logs.items|length }}
+                {% else %}
+                    0
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+    <!-- =====================================================
+         FILTERS
+    ====================================================== -->
+
+    <div class="filter-card">
+
+
+        <form
+            method="GET"
+            action="{{ request.path }}"
+        >
+
+            <div class="filter-grid">
+
+
+                <!-- SEARCH -->
+
+                <input
+                    type="text"
+                    name="search"
+                    class="form-control"
+                    placeholder="Search endpoint or IP address..."
+                    value="{{ request.args.get('search', '') }}"
+                >
+
+
+                <!-- METHOD -->
+
+                <select
+                    name="method"
+                    class="form-control"
+                >
+
+                    <option value="">
+                        All Methods
+                    </option>
+
+                    <option value="GET"
+                        {% if request.args.get('method') == 'GET' %}
+                            selected
+                        {% endif %}
+                    >
+                        GET
+                    </option>
+
+                    <option value="POST"
+                        {% if request.args.get('method') == 'POST' %}
+                            selected
+                        {% endif %}
+                    >
+                        POST
+                    </option>
+
+                    <option value="PUT"
+                        {% if request.args.get('method') == 'PUT' %}
+                            selected
+                        {% endif %}
+                    >
+                        PUT
+                    </option>
+
+                    <option value="PATCH"
+                        {% if request.args.get('method') == 'PATCH' %}
+                            selected
+                        {% endif %}
+                    >
+                        PATCH
+                    </option>
+
+                    <option value="DELETE"
+                        {% if request.args.get('method') == 'DELETE' %}
+                            selected
+                        {% endif %}
+                    >
+                        DELETE
+                    </option>
+
+                </select>
+
+
+                <!-- STATUS -->
+
+                <select
+                    name="status"
+                    class="form-control"
+                >
+
+                    <option value="">
+                        All Status
+                    </option>
+
+                    <option value="2xx"
+                        {% if request.args.get('status') == '2xx' %}
+                            selected
+                        {% endif %}
+                    >
+                        2xx Success
+                    </option>
+
+                    <option value="4xx"
+                        {% if request.args.get('status') == '4xx' %}
+                            selected
+                        {% endif %}
+                    >
+                        4xx Client Error
+                    </option>
+
+                    <option value="5xx"
+                        {% if request.args.get('status') == '5xx' %}
+                            selected
+                        {% endif %}
+                    >
+                        5xx Server Error
+                    </option>
+
+                </select>
+
+
+                <!-- DATE FROM -->
+
+                <input
+                    type="date"
+                    name="date_from"
+                    class="form-control"
+                    value="{{ request.args.get('date_from', '') }}"
+                >
+
+
+                <!-- DATE TO -->
+
+                <input
+                    type="date"
+                    name="date_to"
+                    class="form-control"
+                    value="{{ request.args.get('date_to', '') }}"
+                >
+
+
+                <!-- SEARCH BUTTON -->
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                >
+                    Search
+                </button>
+
+
+            </div>
+
+        </form>
+
+    </div>
+
+
+    <!-- =====================================================
+         TABLE
+    ====================================================== -->
+
+    <div class="table-card">
+
+
+        <div class="table-header">
+
+            <div class="table-title">
+                Request Logs
+            </div>
+
+
+            <div class="record-count">
+
+                {% if logs %}
+                    {{ logs.total }} records
+                {% else %}
+                    0 records
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+        <div class="table-wrapper">
+
+
+            <table>
+
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            ID
+                        </th>
+
+                        <th>
+                            Created At
+                        </th>
+
+                        <th>
+                            Method
+                        </th>
+
+                        <th>
+                            Endpoint
+                        </th>
+
+                        <th>
+                            IP Address
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th>
+                            Duration
+                        </th>
+
+                        <th>
+                            Updated At
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+
+                {% if logs and logs.items %}
+
+
+                    {% for log in logs.items %}
+
+
+                    <tr
+                        onclick="openLog({{ loop.index0 }})"
+                    >
+
+
+                        <!-- ID -->
+
+                        <td>
+
+                            <span class="log-id">
+                                #{{ log.id }}
+                            </span>
+
+                        </td>
+
+
+                        <!-- CREATED AT -->
+
+                        <td>
+
+                            {% if log.created_at %}
+
+                                <span
+                                    class="timestamp local-time"
+                                    data-utc="{{ log.created_at.isoformat() }}"
+                                >
+                                    —
+                                </span>
+
+                            {% else %}
+
+                                <span class="timestamp">
+                                    —
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <!-- METHOD -->
+
+                        <td>
+
+                            {% set method =
+                                log.method|upper
+                            %}
+
+                            <span
+                                class="method method-{{ method }}"
+                            >
+                                {{ method }}
+                            </span>
+
+                        </td>
+
+
+                        <!-- ENDPOINT -->
+
+                        <td>
+
+                            <div
+                                class="endpoint"
+                                title="{{ log.endpoint }}"
+                            >
+                                {{ log.endpoint }}
+                            </div>
+
+                        </td>
+
+
+                        <!-- IP -->
+
+                        <td>
+
+                            <span class="ip-address">
+                                {{ log.ip_address or '—' }}
+                            </span>
+
+                        </td>
+
+
+                        <!-- STATUS -->
+
+                        <td>
+
+
+                            {% if log.status_code is not none %}
+
+
+                                {% if log.status_code < 400 %}
+
+
+                                    <span
+                                        class="status status-success"
+                                    >
+
+                                        <span
+                                            class="status-dot"
+                                        ></span>
+
+                                        {{ log.status_code }}
+
+                                    </span>
+
+
+                                {% elif log.status_code < 500 %}
+
+
+                                    <span
+                                        class="status status-client"
+                                    >
+
+                                        <span
+                                            class="status-dot"
+                                        ></span>
+
+                                        {{ log.status_code }}
+
+                                    </span>
+
+
+                                {% else %}
+
+
+                                    <span
+                                        class="status status-server"
+                                    >
+
+                                        <span
+                                            class="status-dot"
+                                        ></span>
+
+                                        {{ log.status_code }}
+
+                                    </span>
+
+
+                                {% endif %}
+
+
+                            {% else %}
+
+                                —
+
+                            {% endif %}
+
+
+                        </td>
+
+
+                        <!-- DURATION -->
+
+                        <td>
+
+
+                            {% if log.duration_ms is not none %}
+
+
+                                <span
+                                    class="duration
+
+                                    {% if log.duration_ms < 200 %}
+                                        duration-fast
+
+                                    {% elif log.duration_ms < 1000 %}
+                                        duration-medium
+
+                                    {% else %}
+                                        duration-slow
+                                    {% endif %}
+                                    "
+                                >
+
+                                    {{ "%.2f"|format(
+                                        log.duration_ms
+                                    ) }} ms
+
+                                </span>
+
+
+                            {% else %}
+
+                                —
+
+                            {% endif %}
+
+
+                        </td>
+
+
+                        <!-- UPDATED AT -->
+
+                        <td>
+
+                            {% if log.updated_at %}
+
+                                <span
+                                    class="timestamp local-time"
+                                    data-utc="{{ log.updated_at.isoformat() }}"
+                                >
+                                    —
+                                </span>
+
+                            {% else %}
+
+                                <span class="timestamp">
+                                    —
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                    </tr>
+
+
+                    {% endfor %}
+
+
+                {% else %}
+
+
+                    <tr>
+
+                        <td
+                            colspan="8"
+                            style="
+                                text-align:center;
+                                padding:55px;
+                                color:#9ca3af;
+                            "
+                        >
+
+                            <div
+                                style="
+                                    font-size:32px;
+                                    margin-bottom:10px;
+                                "
+                            >
+                                📭
+                            </div>
+
+                            <div
+                                style="
+                                    font-size:14px;
+                                    font-weight:600;
+                                    color:#6b7280;
+                                "
+                            >
+                                No audit logs found
+                            </div>
+
+                            <div
+                                style="
+                                    font-size:12px;
+                                    margin-top:5px;
+                                "
+                            >
+                                Try changing your search or filters.
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+
+                {% endif %}
+
+
+                </tbody>
+
+
+            </table>
+
+
+        </div>
+
+
+        <!-- =================================================
+             PAGINATION
+        ================================================== -->
+
+        {% if logs and logs.pages > 1 %}
+
+
+        <div class="pagination">
+
+
+            <div class="pagination-info">
+
+                Page
+                <strong>{{ logs.page }}</strong>
+                of
+                <strong>{{ logs.pages }}</strong>
+
+            </div>
+
+
+            <div class="pagination-buttons">
+
+
+                {% if logs.has_prev %}
+
+                    <a
+                        class="page-btn"
+                        href="{{ url_for(
+                            request.endpoint,
+                            page=logs.prev_num,
+                            **request.args.to_dict()
+                        ) }}"
+                    >
+                        ‹
+                    </a>
+
+                {% endif %}
+
+
+                {% for page_num in logs.iter_pages(
+                    left_edge=1,
+                    left_current=2,
+                    right_current=2,
+                    right_edge=1
+                ) %}
+
+
+                    {% if page_num %}
+
+
+                        <a
+                            class="page-btn
+                            {% if page_num == logs.page %}
+                                active
+                            {% endif %}
+                            "
+                            href="{{ url_for(
+                                request.endpoint,
+                                page=page_num,
+                                **request.args.to_dict()
+                            ) }}"
+                        >
+                            {{ page_num }}
+                        </a>
+
+
+                    {% else %}
+
+
+                        <span class="page-btn">
+                            …
+                        </span>
+
+
+                    {% endif %}
+
+
+                {% endfor %}
+
+
+                {% if logs.has_next %}
+
+                    <a
+                        class="page-btn"
+                        href="{{ url_for(
+                            request.endpoint,
+                            page=logs.next_num,
+                            **request.args.to_dict()
+                        ) }}"
+                    >
+                        ›
+                    </a>
+
+                {% endif %}
+
+
+            </div>
+
+
+        </div>
+
+
+        {% endif %}
+
+
+    </div>
+
+
+</div>
+
+
+<!-- ==========================================================
+     LOG DETAILS SIDE PANEL
+========================================================== -->
+
+<div
+    id="logModal"
+    class="modal"
+    onclick="closeModalOutside(event)"
+>
+
+
+    <div class="modal-panel">
+
+
+        <!-- ==================================================
+             MODAL HEADER
+        =================================================== -->
+
+        <div class="modal-header">
+
+
+            <div class="modal-title">
+                API Request Details
+            </div>
+
+
+            <button
+                type="button"
+                class="close-btn"
+                onclick="closeLog()"
+            >
+                ×
+            </button>
+
+
+        </div>
+
+
+        <!-- ==================================================
+             MODAL BODY
+        =================================================== -->
+
+        <div class="modal-body">
+
+
+            <!-- REQUEST SUMMARY -->
+
+            <div class="request-summary">
+
+
+                <div
+                    id="detailRequest"
+                    class="request-line"
+                >
+                    —
+                </div>
+
+
+                <div class="summary-grid">
+
+
+                    <!-- ID -->
+
+                    <div class="summary-item">
+
+                        <span class="summary-label">
+                            Log ID
+                        </span>
+
+                        <span
+                            id="detailId"
+                            class="summary-value"
+                        >
+                            —
+                        </span>
+
+                    </div>
+
+
+                    <!-- METHOD -->
+
+                    <div class="summary-item">
+
+                        <span class="summary-label">
+                            Method
+                        </span>
+
+                        <span
+                            id="detailMethod"
+                            class="summary-value"
+                        >
+                            —
+                        </span>
+
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    <div class="summary-item">
+
+                        <span class="summary-label">
+                            Status
+                        </span>
+
+                        <span
+                            id="detailStatus"
+                            class="summary-value"
+                        >
+                            —
+                        </span>
+
+                    </div>
+
+
+                    <!-- IP -->
+
+                    <div class="summary-item">
+
+                        <span class="summary-label">
+                            IP Address
+                        </span>
+
+                        <span
+                            id="detailIp"
+                            class="summary-value"
+                        >
+                            —
+                        </span>
+
+                    </div>
+
+
+                    <!-- DURATION -->
+
+                    <div class="summary-item">
+
+                        <span class="summary-label">
+                            Duration
+                        </span>
+
+                        <span
+                            id="detailDuration"
+                            class="summary-value"
+                        >
+                            —
+                        </span>
+
+                    </div>
+
+
+                    <!-- CREATED -->
+
+                    <div class="summary-item">
+
+                        <span class="summary-label">
+                            Created At
+                        </span>
+
+                        <span
+                            id="detailCreated"
+                            class="summary-value"
+                        >
+                            —
+                        </span>
+
+                    </div>
+
+
+                    <!-- UPDATED -->
+
+                    <div class="summary-item">
+
+                        <span class="summary-label">
+                            Updated At
+                        </span>
+
+                        <span
+                            id="detailUpdated"
+                            class="summary-value"
+                        >
+                            —
+                        </span>
+
+                    </div>
+
+
+                </div>
+
+
+            </div>
+
+
+            <!-- =================================================
+                 REQUEST HEADERS
+            ================================================== -->
+
+            <div class="detail-section">
+
+
+                <div class="detail-header">
+
+
+                    <div class="detail-title">
+                        Request Headers
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="copy-btn"
+                        onclick="copyContent('requestHeaders')"
+                    >
+                        Copy
+                    </button>
+
+
+                </div>
+
+
+                <pre
+                    id="requestHeaders"
+                    class="code-block"
+                ></pre>
+
+
+            </div>
+
+
+            <!-- =================================================
+                 REQUEST BODY
+            ================================================== -->
+
+            <div class="detail-section">
+
+
+                <div class="detail-header">
+
+
+                    <div class="detail-title">
+                        Request Body
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="copy-btn"
+                        onclick="copyContent('requestBody')"
+                    >
+                        Copy
+                    </button>
+
+
+                </div>
+
+
+                <pre
+                    id="requestBody"
+                    class="code-block"
+                ></pre>
+
+
+            </div>
+
+
+            <!-- =================================================
+                 RESPONSE BODY
+            ================================================== -->
+
+            <div class="detail-section">
+
+
+                <div class="detail-header">
+
+
+                    <div class="detail-title">
+                        Response Body
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="copy-btn"
+                        onclick="copyContent('responseBody')"
+                    >
+                        Copy
+                    </button>
+
+
+                </div>
+
+
+                <pre
+                    id="responseBody"
+                    class="code-block"
+                ></pre>
+
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+<script>
+
+
+/* ============================================================
+   LOG DATA FROM FLASK
+============================================================ */
+
+
+const logsData = [
+
+    {% if logs %}
+
+        {% for log in logs.items %}
+
+        {
+
+            id:
+                {{ log.id|tojson }},
+
+            created_at:
+                {{ (
+                    log.created_at.isoformat()
+                    if log.created_at
+                    else ''
+                )|tojson }},
+
+            updated_at:
+                {{ (
+                    log.updated_at.isoformat()
+                    if log.updated_at
+                    else ''
+                )|tojson }},
+
+            endpoint:
+                {{ log.endpoint|tojson }},
+
+            method:
+                {{ log.method|tojson }},
+
+            ip_address:
+                {{ (
+                    log.ip_address or ''
+                )|tojson }},
+
+            request_headers:
+                {{ (
+                    log.request_headers or ''
+                )|tojson }},
+
+            request_body:
+                {{ (
+                    log.request_body or ''
+                )|tojson }},
+
+            response_body:
+                {{ (
+                    log.response_body or ''
+                )|tojson }},
+
+            status_code:
+                {{ (
+                    log.status_code
+                    if log.status_code is not none
+                    else 'null'
+                ) }},
+
+            duration_ms:
+                {{ (
+                    log.duration_ms
+                    if log.duration_ms is not none
+                    else 'null'
+                ) }}
+
+        }
+
+        {% if not loop.last %},{% endif %}
+
+        {% endfor %}
+
+    {% endif %}
+
+];
+
+
+/* ============================================================
+   UTC → LOCAL TIME
+============================================================ */
+
+function formatLocalDateTime(value) {
+
+    if (!value) {
+        return "—";
     }
 
-    function renderTable() {
-      const tbody = document.getElementById('logsTableBody');
-      if (!logsCache.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-500">No logs found matching criteria</td></tr>`;
+    try {
+
+        let normalizedValue = value;
+
+        /*
+         * Your DB stores UTC.
+         *
+         * isoformat() may produce:
+         *
+         * 2026-09-06T01:30:00
+         *
+         * without timezone information.
+         *
+         * Adding Z tells JavaScript that
+         * this timestamp is UTC.
+         */
+
+        if (
+            !normalizedValue.endsWith("Z") &&
+            !normalizedValue.includes("+")
+        ) {
+
+            normalizedValue += "Z";
+
+        }
+
+
+        const date =
+            new Date(normalizedValue);
+
+
+        if (
+            isNaN(date.getTime())
+        ) {
+
+            return "—";
+
+        }
+
+
+        /*
+         * undefined = browser's local timezone.
+         */
+
+        return date.toLocaleString(
+            undefined,
+            {
+                year: "numeric",
+
+                month: "2-digit",
+
+                day: "2-digit",
+
+                hour: "2-digit",
+
+                minute: "2-digit",
+
+                second: "2-digit",
+
+                hour12: false
+            }
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Timestamp conversion failed:",
+            error
+        );
+
+        return "—";
+
+    }
+
+}
+
+
+/* ============================================================
+   CONVERT TABLE TIMESTAMPS
+============================================================ */
+
+function convertTableTimestamps() {
+
+    document
+        .querySelectorAll(".local-time")
+        .forEach(function(element) {
+
+            const utcValue =
+                element.dataset.utc;
+
+            element.textContent =
+                formatLocalDateTime(utcValue);
+
+        });
+
+}
+
+
+/* ============================================================
+   OPEN LOG DETAILS
+============================================================ */
+
+function openLog(index) {
+
+    const log =
+        logsData[index];
+
+
+    if (!log) {
         return;
-      }
-
-      tbody.innerHTML = logsCache.map((log, index) => {
-        const methodBadge = `<span class="px-2 py-0.5 rounded-md border text-[10px] font-bold ${METHOD_COLORS[log.method] || 'bg-slate-700 text-slate-300'}">${log.method}</span>`;
-        const timeFormatted = log.created_at ? new Date(log.created_at).toLocaleTimeString() : '-';
-
-        return `
-          <tr class="hover:bg-slate-800/30 transition">
-            <td class="py-3 px-4">${methodBadge}</td>
-            <td class="py-3 px-4">${getStatusBadge(log.status_code)}</td>
-            <td class="py-3 px-4 mono text-slate-200">${log.endpoint}</td>
-            <td class="py-3 px-4 text-slate-400">${log.duration_ms ? log.duration_ms + ' ms' : '-'}</td>
-            <td class="py-3 px-4 text-slate-400 mono text-[11px]">${log.ip_address || '127.0.0.1'}</td>
-            <td class="py-3 px-4 text-slate-500">${timeFormatted}</td>
-            <td class="py-3 px-4 text-right">
-              <button onclick="viewDetails(${index})" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-lg text-[11px] border border-slate-700 transition">
-                Inspect
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
     }
 
-    function formatJsonSafe(data) {
-      if (!data) return "None";
-      try {
-        const parsed = typeof data === "string" ? JSON.parse(data) : data;
-        return JSON.stringify(parsed, null, 2);
-      } catch {
-        return data;
-      }
+
+    /*
+     * Request
+     */
+
+    document
+        .getElementById("detailRequest")
+        .textContent =
+            `${log.method} ${log.endpoint}`;
+
+
+    /*
+     * ID
+     */
+
+    document
+        .getElementById("detailId")
+        .textContent =
+            "#" + log.id;
+
+
+    /*
+     * Method
+     */
+
+    document
+        .getElementById("detailMethod")
+        .textContent =
+            log.method || "—";
+
+
+    /*
+     * Status
+     */
+
+    document
+        .getElementById("detailStatus")
+        .textContent =
+            log.status_code !== null
+                ? log.status_code
+                : "—";
+
+
+    /*
+     * IP
+     */
+
+    document
+        .getElementById("detailIp")
+        .textContent =
+            log.ip_address || "—";
+
+
+    /*
+     * Duration
+     */
+
+    document
+        .getElementById("detailDuration")
+        .textContent =
+            log.duration_ms !== null
+                ? Number(
+                    log.duration_ms
+                  ).toFixed(2) + " ms"
+                : "—";
+
+
+    /*
+     * Created At
+     */
+
+    document
+        .getElementById("detailCreated")
+        .textContent =
+            formatLocalDateTime(
+                log.created_at
+            );
+
+
+    /*
+     * Updated At
+     */
+
+    document
+        .getElementById("detailUpdated")
+        .textContent =
+            formatLocalDateTime(
+                log.updated_at
+            );
+
+
+    /*
+     * Request Headers
+     */
+
+    formatJson(
+        "requestHeaders",
+        log.request_headers
+    );
+
+
+    /*
+     * Request Body
+     */
+
+    formatJson(
+        "requestBody",
+        log.request_body
+    );
+
+
+    /*
+     * Response Body
+     */
+
+    formatJson(
+        "responseBody",
+        log.response_body
+    );
+
+
+    /*
+     * Open modal
+     */
+
+    document
+        .getElementById("logModal")
+        .classList.add("active");
+
+
+    /*
+     * Prevent background scrolling
+     */
+
+    document.body.style.overflow =
+        "hidden";
+
+}
+
+
+/* ============================================================
+   CLOSE LOG
+============================================================ */
+
+function closeLog() {
+
+    document
+        .getElementById("logModal")
+        .classList.remove("active");
+
+
+    document.body.style.overflow =
+        "";
+
+}
+
+
+/* ============================================================
+   CLOSE WHEN CLICKING OUTSIDE
+============================================================ */
+
+function closeModalOutside(event) {
+
+    if (
+        event.target.id === "logModal"
+    ) {
+
+        closeLog();
+
     }
 
-    function viewDetails(index) {
-      const log = logsCache[index];
-      if (!log) return;
+}
 
-      document.getElementById('modalMethodBadge').innerHTML = `<span class="px-2 py-0.5 rounded-md border text-[10px] font-bold ${METHOD_COLORS[log.method] || 'bg-slate-700'}">${log.method}</span>`;
-      document.getElementById('modalEndpoint').innerText = log.endpoint;
-      document.getElementById('modalStatusBadge').innerHTML = getStatusBadge(log.status_code);
 
-      document.getElementById('modalReqBody').textContent = formatJsonSafe(log.request_body);
-      document.getElementById('modalResBody').textContent = formatJsonSafe(log.response_body);
-      document.getElementById('modalHeaders').textContent = formatJsonSafe(log.request_headers);
+/* ============================================================
+   ESC KEY
+============================================================ */
 
-      document.getElementById('detailsModal').classList.remove('hidden');
+document.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Escape"
+        ) {
+
+            closeLog();
+
+        }
+
+    }
+);
+
+
+/* ============================================================
+   FORMAT JSON
+============================================================ */
+
+function formatJson(
+    elementId,
+    value
+) {
+
+    const element =
+        document.getElementById(
+            elementId
+        );
+
+
+    if (!value) {
+
+        element.innerHTML =
+            '<span class="empty-data">' +
+            'No data available' +
+            '</span>';
+
+        return;
+
     }
 
-    function closeModal() {
-      document.getElementById('detailsModal').classList.add('hidden');
+
+    try {
+
+        const parsed =
+            typeof value === "string"
+                ? JSON.parse(value)
+                : value;
+
+
+        element.textContent =
+            JSON.stringify(
+                parsed,
+                null,
+                2
+            );
+
     }
 
-    function changePage(delta) {
-      const targetPage = currentPage + delta;
-      if (targetPage >= 1 && targetPage <= totalPages) {
-        fetchLogs(targetPage);
-      }
+    catch (error) {
+
+        /*
+         * If it is not JSON,
+         * display it as plain text.
+         */
+
+        element.textContent =
+            value;
+
     }
 
-    // Auto-load on visit
-    document.addEventListener('DOMContentLoaded', () => fetchLogs(1));
-  </script>
+}
+
+
+/* ============================================================
+   COPY CONTENT
+============================================================ */
+
+async function copyContent(
+    elementId
+) {
+
+    const element =
+        document.getElementById(
+            elementId
+        );
+
+
+    if (!element) {
+        return;
+    }
+
+
+    const text =
+        element.textContent;
+
+
+    try {
+
+        await navigator.clipboard.writeText(
+            text
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Copy failed:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ============================================================
+   REFRESH
+============================================================ */
+
+function refreshLogs() {
+
+    window.location.reload();
+
+}
+
+
+/* ============================================================
+   CLEAR FILTERS
+============================================================ */
+
+function clearFilters() {
+
+    window.location.href =
+        "{{ request.path }}";
+
+}
+
+
+/* ============================================================
+   INITIALIZE
+============================================================ */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function() {
+
+        convertTableTimestamps();
+
+    }
+);
+
+
+</script>
+
+
 </body>
+
 </html>

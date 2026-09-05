@@ -1,8 +1,9 @@
 from flask_restful import Resource
-from flask import request
+from flask import request, Response
 from app.config.success_config import success_config
 from app.models.base_model import ApiAuditLog
 from flask import render_template
+from app import db
 
 class BaseHandler(Resource):
     def __init__(self):
@@ -48,28 +49,78 @@ class AuditLogHandler(BaseHandler):
     def get(self):
         try:
             page = request.args.get("page", 1, type=int)
-            per_page = request.args.get("per_page", 20, type=int)
-            method = request.args.get("method", type=str)
-            status = request.args.get("status_code", type=int)
+            per_page = 25
 
             query = ApiAuditLog.query
 
-            if method:
-                query = query.filter(ApiAuditLog.method == method.upper())
-            if status:
-                query = query.filter(ApiAuditLog.status_code == status)
+            search = request.args.get("search", "").strip()
+            method = request.args.get("method", "").strip()
+            status = request.args.get("status", "").strip()
 
-            paginated_logs = query.order_by(ApiAuditLog.created_at.desc()).paginate(
-                page=page, per_page=per_page, error_out=False
+            if search:
+                query = query.filter(
+                    db.or_(
+                        ApiAuditLog.endpoint.ilike(f"%{search}%"),
+                        ApiAuditLog.ip_address.ilike(f"%{search}%")
+                    )
+                )
+
+            if method:
+                query = query.filter(
+                    ApiAuditLog.method == method
+                )
+
+            if status == "2xx":
+                query = query.filter(
+                    ApiAuditLog.status_code.between(200, 299)
+                )
+
+            elif status == "4xx":
+                query = query.filter(
+                    ApiAuditLog.status_code.between(400, 499)
+                )
+
+            elif status == "5xx":
+                query = query.filter(
+                    ApiAuditLog.status_code.between(500, 599)
+                )
+
+            logs = query.order_by(
+                ApiAuditLog.created_at.desc()
+            ).paginate(
+                page=page,
+                per_page=per_page,
+                error_out=False
             )
 
-            # return {
-            #     "total": paginated_logs.total,
-            #     "page": paginated_logs.page,
-            #     "pages": paginated_logs.pages,
-            #     "per_page": paginated_logs.per_page,
-            #     "data": [log.to_dict() for log in paginated_logs.items]
-            # }, 200
-            return render_template("logs.html")
+            total_logs = ApiAuditLog.query.count()
+
+            successful_logs = ApiAuditLog.query.filter(
+                ApiAuditLog.status_code.between(200, 399)
+            ).count()
+
+            client_errors = ApiAuditLog.query.filter(
+                ApiAuditLog.status_code.between(400, 499)
+            ).count()
+
+            server_errors = ApiAuditLog.query.filter(
+                ApiAuditLog.status_code.between(500, 599)
+            ).count()
+
+            html = render_template(
+                "logs.html",
+                logs=logs,
+                total_logs=total_logs,
+                successful_logs=successful_logs,
+                client_errors=client_errors,
+                server_errors=server_errors
+            )
+
+            return Response(
+                html,
+                status=200,
+                content_type="text/html; charset=utf-8"
+            )
+
         except Exception as e:
             print(e)
