@@ -11,7 +11,7 @@ from app.helpers.base_helper import ApiException
 from app.config.error_config import error_config
 
 class UserHandler(BaseHandler, UserHelper, DateTimeHelper):
-    @authenticate
+    # @authenticate
     def post(self):
         try:
             payload = request.get_json()
@@ -20,18 +20,18 @@ class UserHandler(BaseHandler, UserHelper, DateTimeHelper):
             password = payload.get('password')
             role = payload.get('role')
 
-            if not name :
-                raise ApiException(error_config[3])
+            # if not name :
+            #     raise ApiException(error_config[3])
 
         
             encrypted_password = generate_password_hash(password)
 
             response = UserHelper.create_user(self,name,email,encrypted_password,role)
-            return self.return_json(status=200,data=response.get('data',{}),success=success_config[0])
+            return self.return_json(status=200,data={},success=success_config[2])
         except ApiException:
             return self.return_json(status=400,data={},error=error_config[3])
         except Exception as e:
-            return self.return_json(status=400,data={},error=error_config[3])
+            return self.return_json(status=400,data={},error=error_config[7])
 
     @authenticate
     def get(self):

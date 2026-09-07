@@ -8,6 +8,11 @@ success_config = [
         'code':1,
         'status':'true',
         'message':''
+    },
+    {
+        'code':2,
+        'status':'true',
+        'message':'user created successfully'
     }
     
 ]

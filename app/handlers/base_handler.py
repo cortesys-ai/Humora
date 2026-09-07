@@ -124,3 +124,8 @@ class AuditLogHandler(BaseHandler):
 
         except Exception as e:
             print(e)
+            print(
+                type(e).__name__,          # TypeError
+                __file__,                  # /tmp/example.py
+                e.__traceback__.tb_lineno  # 2
+            )

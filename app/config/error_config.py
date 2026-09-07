@@ -34,5 +34,10 @@ error_config = [
         "message":"Please enter Valid password",
         "success":"false"
     },
+    {
+        "code":7,
+        "message":"Oops, something went wrong",
+        "success":"false"
+    },
 
 ]
